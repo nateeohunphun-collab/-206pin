@@ -1,0 +1,1648 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ed-Quest AI: ผู้ช่วยติวเฉพาะบุคคลและเกมภารกิจพิชิตบทเรียน</title>
+  <!-- โหลดฟอนต์ภาษาไทยคุณภาพสูง (Prompt, Kanit, Sarabun) ป้องกันปัญหาสระลอยหรือวรรณยุกต์ทับซ้อน -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@400;500;600;700&family=Prompt:wght@300;400;500;600;700&family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet" />
+  <!-- โหลด Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- ตั้งค่าชุดสีทั้ง 6 โทน (น้ำตาล เขียว ส้ม ม่วง แดง ชมพู) -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Prompt', 'Sarabun', 'sans-serif'],
+            display: ['Kanit', 'Prompt', 'sans-serif'],
+          },
+          colors: {
+            // 1. สีน้ำตาลอบอุ่น (Warm Brown & Cream)
+            warmCream: {
+              50: '#FDF8F5',
+              100: '#F7EFE9',
+              200: '#E6D5C3',
+              300: '#D4BC9F',
+            },
+            warmBrown: {
+              500: '#8C6849',
+              700: '#63452E',
+              800: '#4A3222',
+              900: '#352216',
+            },
+            // 2. สีเขียวสดใส (Emerald & Mint Green)
+            questGreen: {
+              50: '#ECFDF5',
+              100: '#D1FAE5',
+              200: '#A7F3D0',
+              500: '#10B981',
+              600: '#059669',
+              700: '#047857',
+            },
+            // 3. สีส้มอบอุ่น (Vibrant Orange & Amber)
+            questOrange: {
+              50: '#FFF7ED',
+              100: '#FFEDD5',
+              200: '#FED7AA',
+              500: '#F97316',
+              600: '#EA580C',
+              700: '#C2410C',
+            },
+            // 4. สีม่วงอัจฉริยะ (Royal & Soft Purple)
+            questPurple: {
+              50: '#FAF5FF',
+              100: '#F3E8FF',
+              200: '#E9D5FF',
+              500: '#A855F7',
+              600: '#9333EA',
+              700: '#7E22CE',
+            },
+            // 5. สีแดงพลังบอส (Coral & Ruby Red)
+            questRed: {
+              50: '#FEF2F2',
+              100: '#FEE2E2',
+              200: '#FECACA',
+              500: '#EF4444',
+              600: '#DC2626',
+              700: '#B91C1C',
+            },
+            // 6. สีชมพูสดใส (Rose & Pastel Pink)
+            questPink: {
+              50: '#FDF2F8',
+              100: '#FCE7F3',
+              200: '#FBCFE8',
+              500: '#EC4899',
+              600: '#DB2777',
+              700: '#BE185D',
+            }
+          },
+          boxShadow: {
+            soft: '0 8px 24px -4px rgba(74, 50, 34, 0.08)',
+            card: '0 4px 14px rgba(74, 50, 34, 0.06)',
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #FDF8F5;
+      color: #4A3222;
+      font-family: 'Prompt', 'Sarabun', sans-serif;
+      line-height: 1.65;
+    }
+    h1, h2, h3, h4, .font-display {
+      font-family: 'Kanit', 'Prompt', sans-serif;
+      line-height: 1.4;
+    }
+    ::-webkit-scrollbar {
+      width: 7px;
+      height: 7px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F7EFE9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #D4BC9F;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #8C6849;
+    }
+    .animate-float {
+      animation: float 3s ease-in-out infinite;
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col selection:bg-questPink-200 selection:text-warmBrown-900">
+
+  <!-- กล่องแจ้งเตือนแบบลอย (Toast Notification) -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <!-- =====================================================================
+       ส่วนที่ 1: แถบสถานะด้านบน (Top HUD) ผสานครบทั้ง 6 โทนสี
+       ===================================================================== -->
+  <header class="sticky top-0 z-30 bg-white/95 backdrop-blur-md border-b-2 border-warmCream-200 shadow-sm">
+    <!-- แถบสีรุ้ง 6 สีด้านบนสุดเพื่อความสดใส -->
+    <div class="h-1.5 w-full bg-gradient-to-r from-warmBrown-700 via-questPurple-500 via-questPink-500 via-questRed-500 via-questOrange-500 to-questGreen-500"></div>
+
+    <div class="max-w-6xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- โลโก้และชื่อนวัตกรรม (สีน้ำตาล + ม่วง + ชมพู) -->
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-questPurple-100 via-questPink-100 to-questOrange-100 border-2 border-warmCream-300 flex items-center justify-center text-2xl shadow-xs">
+          🧭
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-display font-bold text-lg sm:text-xl text-warmBrown-800 tracking-tight">Ed-Quest AI</h1>
+            <span class="hidden sm:inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-questPurple-100 text-questPurple-700 border border-questPurple-200">
+              วิทยาการคำนวณ ม.ปลาย / อาชีวศึกษา
+            </span>
+          </div>
+          <p class="text-xs text-warmBrown-500">ผู้ช่วยติวเฉพาะบุคคลและเกมภารกิจพิชิตบทเรียน</p>
+        </div>
+      </div>
+
+      <!-- แถบสถานะผู้เรียน (XP สีส้ม-เขียว, Rank สีม่วง, Gems สีชมพู, กรอบสีน้ำตาล) -->
+      <div id="student-hud" class="flex flex-wrap items-center gap-2 sm:gap-3.5 bg-warmCream-100 px-3.5 py-2 rounded-2xl border border-warmCream-200">
+        <!-- โปรไฟล์ Avatar -->
+        <button onclick="openProfileModal()" class="flex items-center gap-2 text-left hover:bg-white/80 px-2 py-1 rounded-xl transition cursor-pointer" title="คลิกเพื่อแก้ไขชื่อและเปลี่ยนตัวละคร">
+          <span id="hud-avatar" class="text-2xl bg-questPink-50 w-9 h-9 rounded-xl flex items-center justify-center border border-questPink-200 shadow-xs">🦊</span>
+          <div class="leading-snug">
+            <div class="flex items-center gap-1.5">
+              <span id="hud-name" class="font-semibold text-sm text-warmBrown-800">น้องต้นกล้า (ม.4/2)</span>
+              <span class="text-xs text-questPink-600 font-bold">✎</span>
+            </div>
+            <span id="hud-rank" class="text-xs font-semibold text-questPurple-700 bg-questPurple-100 px-2 py-0.5 rounded-full inline-block">
+              นักสำรวจมือใหม่ (Lv.1)
+            </span>
+          </div>
+        </button>
+
+        <div class="h-7 w-px bg-warmCream-200 hidden sm:block"></div>
+
+        <!-- หลอด Level & XP (ไล่เฉดสีส้มไปสีเขียว) -->
+        <div class="min-w-[130px] sm:min-w-[160px]">
+          <div class="flex justify-between text-xs font-semibold text-warmBrown-700 mb-1">
+            <span class="text-questOrange-700">⭐ เลเวล <span id="hud-level">1</span></span>
+            <span class="text-questGreen-700"><span id="hud-xp">40</span> / <span id="hud-max-xp">200</span> XP</span>
+          </div>
+          <div class="w-full h-2.5 bg-white rounded-full overflow-hidden border border-warmCream-200">
+            <div id="hud-xp-bar" class="h-full bg-gradient-to-r from-questOrange-500 to-questGreen-500 rounded-full transition-all duration-500" style="width: 20%"></div>
+          </div>
+        </div>
+
+        <!-- อัญมณี Gems (โทนสีชมพู) -->
+        <div class="flex items-center gap-1.5 bg-questPink-50 px-3 py-1.5 rounded-xl border border-questPink-200 shadow-xs">
+          <span class="text-base">💎</span>
+          <span id="hud-gems" class="font-bold text-sm text-questPink-700">50</span>
+        </div>
+      </div>
+
+      <!-- ปุ่มสลับโหมด: มุมมองนักเรียน (สีเขียว) vs แดชบอร์ดครู (สีม่วง) -->
+      <div class="flex items-center bg-warmCream-100 p-1 rounded-2xl border border-warmCream-200 gap-1">
+        <button id="btn-mode-student" onclick="switchAppMode('student')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-questGreen-600 text-white shadow-xs cursor-pointer">
+          <span>🎒</span>
+          <span>มุมมองนักเรียน</span>
+        </button>
+        <button id="btn-mode-teacher" onclick="switchAppMode('teacher')" class="px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-questPurple-700 hover:bg-questPurple-100 cursor-pointer">
+          <span>📊</span>
+          <span>แดชบอร์ดครู</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =====================================================================
+       พื้นที่เนื้อหาหลัก (Main Container)
+       ===================================================================== -->
+  <main class="flex-1 max-w-6xl w-full mx-auto px-4 py-6 sm:py-8">
+
+    <!-- ===================================================================
+         โหมดที่ 1: มุมมองนักเรียน (STUDENT MODE)
+         =================================================================== -->
+    <div id="view-student" class="space-y-6">
+
+      <!-- แถบนำทางขั้นตอนการเรียนรู้ + ปุ่มเรียกผู้ช่วยติว AI (สีม่วง-ชมพู) -->
+      <div class="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-warmCream-200 shadow-card">
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="tab-step-1" onclick="setStudentStep('diagnosis')" class="px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 bg-questOrange-100 text-questOrange-700 border border-questOrange-200 cursor-pointer">
+            <span class="w-6 h-6 rounded-full bg-questOrange-500 text-white text-xs flex items-center justify-center font-bold">1</span>
+            <span>แบบทดสอบวัดพลังพื้นฐาน</span>
+          </button>
+          <span class="text-warmBrown-500 font-bold hidden sm:inline">➔</span>
+          <button id="tab-step-2" onclick="setStudentStep('questmap')" class="px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 text-warmBrown-700 hover:bg-warmCream-100 cursor-pointer">
+            <span class="w-6 h-6 rounded-full bg-warmCream-200 text-xs flex items-center justify-center font-bold text-warmBrown-800">2</span>
+            <span>แผนที่ภารกิจเฉพาะบุคคล</span>
+          </button>
+        </div>
+
+        <button onclick="openTutorDrawer()" class="px-4 py-2.5 rounded-xl text-sm font-semibold bg-gradient-to-r from-questPurple-600 to-questPink-500 hover:opacity-95 text-white transition flex items-center gap-2 shadow-sm cursor-pointer">
+          <span class="text-lg">🤖</span>
+          <span>ปรึกษาผู้ช่วยติว AI</span>
+        </button>
+      </div>
+
+      <!-- -----------------------------------------------------------------
+           ขั้นตอนที่ 1: แบบทดสอบวัดพลังพื้นฐาน (Pre-Quest Diagnosis)
+           ----------------------------------------------------------------- -->
+      <section id="section-diagnosis" class="space-y-6">
+        <!-- แบนเนอร์แนะนำขั้นตอนที่ 1 -->
+        <div class="bg-gradient-to-r from-warmCream-100 via-questPurple-50 to-questPink-50 rounded-3xl p-6 sm:p-8 border border-warmCream-200 shadow-soft">
+          <div class="flex flex-col md:flex-row items-center justify-between gap-6">
+            <div class="space-y-3 max-w-2xl">
+              <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-questPurple-100 text-questPurple-700 border border-questPurple-200">
+                ✨ ขั้นตอนที่ 1: วิเคราะห์จุดแข็งและจุดอ่อนรายบุคคล
+              </span>
+              <h2 class="font-display text-2xl sm:text-3xl font-bold text-warmBrown-800">
+                ทดสอบวัดพลังแนวคิดเชิงคำนวณ (จำนวน 5 ข้อ)
+              </h2>
+              <p class="text-warmBrown-700 text-sm sm:text-base leading-relaxed">
+                ไม่ต้องกังวลหากตอบผิดครับ ระบบ AI จะช่วยประเมินว่าเราเข้าใจเรื่องใดดีแล้ว และควรเสริมพื้นฐานเรื่องใด เพื่อจัดสร้าง <strong class="text-questPurple-700">"แผนที่ภารกิจพิชิตบทเรียน"</strong> ที่เหมาะสมกับระดับของเราโดยเฉพาะ
+              </p>
+            </div>
+            <div class="text-6xl sm:text-7xl animate-float select-none bg-white p-5 rounded-3xl border-2 border-questPurple-200 shadow-card">
+              🔮
+            </div>
+          </div>
+        </div>
+
+        <!-- กล่องทำแบบทดสอบ 5 ข้อ -->
+        <div id="quiz-container" class="bg-white rounded-3xl p-6 sm:p-8 border border-warmCream-200 shadow-soft">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <span id="diag-progress-text" class="text-sm font-bold text-warmBrown-800">ข้อที่ 1 จาก 5</span>
+            <span id="diag-skill-badge" class="text-xs font-semibold px-3 py-1 rounded-full bg-questPurple-100 text-questPurple-700 border border-questPurple-200">
+              ทักษะ: การแยกส่วนประกอบ
+            </span>
+          </div>
+          <div class="w-full h-3 bg-warmCream-100 rounded-full overflow-hidden mb-6 border border-warmCream-200">
+            <div id="diag-progress-bar" class="h-full bg-gradient-to-r from-questOrange-500 via-questPink-500 to-questPurple-600 rounded-full transition-all duration-300" style="width: 20%"></div>
+          </div>
+
+          <!-- คำถามและตัวเลือก -->
+          <div id="diag-question-box" class="space-y-5">
+            <h3 id="diag-question-text" class="font-display text-lg sm:text-xl font-semibold text-warmBrown-800">
+              กำลังโหลดคำถาม...
+            </h3>
+            <div id="diag-options" class="grid grid-cols-1 gap-3">
+              <!-- ตัวเลือกสร้างจาก JavaScript -->
+            </div>
+          </div>
+
+          <!-- ปุ่มควบคุมข้อสอบ -->
+          <div class="mt-8 pt-5 border-t border-warmCream-200 flex flex-wrap items-center justify-between gap-3">
+            <button id="btn-diag-prev" onclick="prevDiagQuestion()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-warmBrown-700 bg-warmCream-100 hover:bg-warmCream-200 transition disabled:opacity-40 cursor-pointer" disabled>
+              ← ข้อก่อนหน้า
+            </button>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <button onclick="autoFillDemoDiagnosis()" class="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-questPink-700 bg-questPink-50 hover:bg-questPink-100 border border-questPink-200 transition cursor-pointer" title="จำลองผลสอบเพื่อทดสอบระบบทันที">
+                ⚡ จำลองคำตอบ (Demo)
+              </button>
+              <button id="btn-diag-next" onclick="nextDiagQuestion()" class="px-6 py-2.5 rounded-xl text-sm font-semibold text-white bg-questGreen-600 hover:bg-questGreen-700 transition shadow-xs cursor-pointer">
+                ข้อถัดไป →
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- กล่องสรุปผลการวิเคราะห์ของ AI (แสดงหลังทำครบ 5 ข้อ) -->
+        <div id="diag-result-box" class="hidden bg-white rounded-3xl p-6 sm:p-8 border-2 border-questPurple-200 shadow-soft space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-warmCream-200 pb-5">
+            <div>
+              <span class="text-xs font-bold uppercase tracking-wider text-questPurple-600">รายงานผลการวิเคราะห์อัจฉริยะ</span>
+              <h3 class="font-display text-2xl font-bold text-warmBrown-800 mt-1">สรุปศักยภาพการเรียนรู้ของคุณ</h3>
+            </div>
+            <div id="result-pace-badge" class="px-4 py-2 rounded-2xl bg-questPurple-100 border border-questPurple-200 text-questPurple-700 font-bold text-sm sm:text-base self-start">
+              ระดับ: ปานกลาง (พัฒนาทักษะ)
+            </div>
+          </div>
+
+          <!-- การ์ดคะแนนแยกตาม 3 ทักษะย่อย (แดง / ส้ม / เขียว) -->
+          <div id="skill-breakdown-cards" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <!-- สร้างด้วย JS -->
+          </div>
+
+          <!-- กล่องคำแนะนำจากผู้ช่วย AI (สีม่วง-น้ำตาล) -->
+          <div class="bg-questPurple-50 rounded-2xl p-5 border border-questPurple-200 flex items-start gap-4">
+            <div class="text-3xl bg-white p-2.5 rounded-2xl border border-questPurple-200 shadow-xs">🤖</div>
+            <div class="space-y-1">
+              <h4 class="font-bold text-questPurple-700 text-base">คำแนะนำจากผู้ช่วย Ed-Quest AI:</h4>
+              <p id="ai-diagnosis-comment" class="text-sm text-warmBrown-800 leading-relaxed"></p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
+            <button onclick="resetDiagnosis()" class="px-5 py-2.5 rounded-xl text-sm font-semibold text-warmBrown-700 bg-warmCream-100 hover:bg-warmCream-200 border border-warmCream-200 transition cursor-pointer">
+              🔄 ทำแบบทดสอบใหม่อีกครั้ง
+            </button>
+            <button onclick="setStudentStep('questmap')" class="px-6 py-3 rounded-2xl text-base font-bold text-white bg-gradient-to-r from-questGreen-600 to-questOrange-500 hover:opacity-95 transition shadow-card flex items-center gap-2 cursor-pointer">
+              <span>🗺️ เปิดแผนที่ภารกิจเฉพาะบุคคล</span>
+              <span>➔</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- -----------------------------------------------------------------
+           ขั้นตอนที่ 2: แผนที่ภารกิจเฉพาะบุคคล (Personalized Quest Map)
+           ----------------------------------------------------------------- -->
+      <section id="section-questmap" class="hidden space-y-6">
+        
+        <!-- แถบสรุปเส้นทางการเรียนรู้ -->
+        <div class="bg-white rounded-3xl p-6 border border-warmCream-200 shadow-card flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="space-y-1.5">
+            <div class="flex flex-wrap items-center gap-2">
+              <h2 class="font-display text-xl sm:text-2xl font-bold text-warmBrown-800">🗺️ แผนที่ภารกิจพิชิตบทเรียน</h2>
+              <span id="map-track-badge" class="text-xs font-bold px-3 py-1 rounded-full bg-questPurple-100 text-questPurple-700 border border-questPurple-200">
+                เส้นทาง: ปานกลาง (พัฒนาทักษะ)
+              </span>
+            </div>
+            <p class="text-sm text-warmBrown-600">
+              AI จัดเรียงด่านภารกิจตามจุดแข็งและจุดอ่อนของคุณ คลิกที่ด่านที่ <strong class="text-questGreen-700">"ปลดล็อกแล้ว"</strong> เพื่ออ่านใบความรู้ย่อยและทำภารกิจสะสมคะแนน!
+            </p>
+          </div>
+
+          <div class="flex items-center gap-3 self-end md:self-center bg-questGreen-50 px-4 py-2.5 rounded-2xl border border-questGreen-200">
+            <div class="text-right">
+              <div class="text-xs font-medium text-warmBrown-600">ความคืบหน้าภารกิจ</div>
+              <div id="quest-completion-text" class="font-bold text-questGreen-700 text-base">0 / 4 ด่าน</div>
+            </div>
+            <div class="w-12 h-12 rounded-2xl bg-questGreen-600 text-white flex items-center justify-center font-bold text-sm shadow-xs" id="quest-completion-pct">
+              0%
+            </div>
+          </div>
+        </div>
+
+        <!-- กริดแสดงการ์ดภารกิจ 4 ด่าน (ส้ม, ชมพู, เขียว, แดง) -->
+        <div id="quest-cards-grid" class="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <!-- สร้างด้วย JavaScript -->
+        </div>
+
+        <!-- หน้าต่างปฏิบัติภารกิจ (Quest Workspace) -->
+        <div id="quest-workspace" class="hidden bg-white rounded-3xl p-6 sm:p-8 border-2 border-questPurple-200 shadow-soft space-y-6">
+          <div class="flex flex-wrap items-start justify-between gap-4 border-b border-warmCream-200 pb-4">
+            <div class="space-y-1.5">
+              <div class="flex flex-wrap items-center gap-2">
+                <span id="ws-quest-tag" class="text-xs font-bold px-3 py-1 rounded-full bg-questOrange-100 text-questOrange-700">ภารกิจเสริมพื้นฐาน</span>
+                <span id="ws-quest-reward" class="text-xs font-bold text-questPink-700 bg-questPink-50 border border-questPink-200 px-3 py-1 rounded-full">รางวัล: +100 XP | +20 💎</span>
+              </div>
+              <h3 id="ws-quest-title" class="font-display text-xl sm:text-2xl font-bold text-warmBrown-800">ชื่อภารกิจ</h3>
+            </div>
+            <button onclick="closeQuestWorkspace()" class="px-4 py-2 rounded-xl text-sm font-semibold bg-warmCream-100 hover:bg-warmCream-200 text-warmBrown-700 transition cursor-pointer">
+              ✕ ปิดหน้าต่างภารกิจ
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <!-- คอลัมน์ซ้าย: ใบความรู้สรุปย่อย (โทนน้ำตาลครีมอบอุ่น) -->
+            <div class="lg:col-span-5 bg-warmCream-50 rounded-2xl p-5 border border-warmCream-200 space-y-3">
+              <div class="flex items-center gap-2 text-warmBrown-800 font-bold text-base">
+                <span class="text-xl">📖</span>
+                <span>ใบความรู้ย่อยฉบับเข้าใจง่าย</span>
+              </div>
+              <div id="ws-micro-content" class="text-sm text-warmBrown-800 space-y-2.5 leading-relaxed">
+                <!-- เนื้อหาสรุปย่อย -->
+              </div>
+              <div class="pt-3 border-t border-warmCream-200">
+                <button onclick="askTutorAboutCurrentQuest()" class="w-full py-2.5 px-4 rounded-xl text-xs sm:text-sm font-semibold bg-questPurple-100 hover:bg-questPurple-200 text-questPurple-700 border border-questPurple-200 transition flex items-center justify-center gap-2 cursor-pointer">
+                  <span>🤖</span>
+                  <span>ยังไม่เข้าใจ? ให้ AI ติวเสริมด่านนี้ทีละขั้น</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- คอลัมน์ขวา: โจทย์ภารกิจท้าทาย -->
+            <div class="lg:col-span-7 bg-white rounded-2xl p-5 border border-warmCream-200 space-y-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <span class="text-sm font-bold text-warmBrown-800 flex items-center gap-1.5">
+                  <span>⚔️</span>
+                  <span>โจทย์ภารกิจพิชิตด่าน</span>
+                </span>
+                <button onclick="requestStepHint()" class="text-xs font-bold px-3.5 py-1.5 rounded-xl bg-questPink-100 hover:bg-questPink-200 text-questPink-700 border border-questPink-200 transition flex items-center gap-1.5 cursor-pointer">
+                  <span>💡</span>
+                  <span>ขอคำใบ้ทีละขั้น (Hint)</span>
+                </button>
+              </div>
+
+              <p id="ws-challenge-question" class="text-base font-medium text-warmBrown-800 leading-relaxed bg-warmCream-100/80 p-4 rounded-2xl border border-warmCream-200">
+                คำถามภารกิจ...
+              </p>
+
+              <!-- ตัวเลือกคำตอบภารกิจ -->
+              <div id="ws-challenge-options" class="space-y-2.5">
+                <!-- สร้างด้วย JS -->
+              </div>
+
+              <!-- กล่องแสดงผลการตรวจคำตอบ -->
+              <div id="ws-feedback-box" class="hidden rounded-2xl p-4 text-sm leading-relaxed"></div>
+
+              <div class="pt-2 flex justify-end">
+                <button id="btn-submit-quest" onclick="submitQuestAnswer()" class="px-6 py-3 rounded-2xl text-sm sm:text-base font-bold bg-questGreen-600 hover:bg-questGreen-700 text-white transition shadow-sm cursor-pointer">
+                  ✨ ส่งคำตอบพิชิตภารกิจ
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- ===================================================================
+         โหมดที่ 2: แดชบอร์ดสรุปผลสำหรับครู (TEACHER ANALYTICS DASHBOARD)
+         =================================================================== -->
+    <div id="view-teacher" class="hidden space-y-6">
+      
+      <!-- หัวข้อแดชบอร์ดครู -->
+      <div class="bg-white rounded-3xl p-6 sm:p-8 border border-warmCream-200 shadow-soft flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <span class="inline-block text-xs font-bold px-3 py-1 rounded-full bg-questPurple-100 text-questPurple-700 border border-questPurple-200">
+            ระบบวิเคราะห์ข้อมูลผู้เรียนสำหรับครูผู้สอน
+          </span>
+          <h2 class="font-display text-2xl sm:text-3xl font-bold text-warmBrown-800">
+            แดชบอร์ดติดตามพัฒนาการผู้เรียนรายบุคคล
+          </h2>
+          <p class="text-sm text-warmBrown-600">
+            รายวิชา: วิทยาการคำนวณ (ระดับชั้น ม.4 / ปวช.1) • ห้องเรียนตัวอย่าง 32 คน (อัปเดตข้อมูลแบบเรียลไทม์)
+          </p>
+        </div>
+        <button onclick="switchAppMode('student')" class="px-4 py-2.5 rounded-2xl text-sm font-semibold bg-questGreen-600 hover:bg-questGreen-700 text-white transition shadow-xs cursor-pointer">
+          ← กลับไปมุมมองนักเรียน
+        </button>
+      </div>
+
+      <!-- การ์ดสถิติภาพรวม 4 ใบ (เขียว, แดง, ส้ม, ม่วง) -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-questGreen-50 p-5 rounded-3xl border-2 border-questGreen-200 shadow-card">
+          <div class="text-xs font-bold text-questGreen-700">ผู้เรียนที่ประเมินพลังแล้ว</div>
+          <div class="text-3xl font-display font-bold text-warmBrown-800 mt-1">32 / 32 <span class="text-sm font-semibold text-questGreen-700">(100%)</span></div>
+          <div class="text-xs text-warmBrown-600 mt-2">ประหยัดเวลาตรวจข้อสอบวินิจฉัย ~3 ชม.</div>
+        </div>
+        <div class="bg-questRed-50 p-5 rounded-3xl border-2 border-questRed-200 shadow-card">
+          <div class="text-xs font-bold text-questRed-700">กลุ่มเรียนรู้ช้า / ต้องซ่อมเสริม</div>
+          <div class="text-3xl font-display font-bold text-questRed-600 mt-1">9 คน <span class="text-sm font-medium text-warmBrown-700">(28.1%)</span></div>
+          <div class="text-xs text-warmBrown-600 mt-2">AI จ่ายภารกิจปูพื้นฐานให้อัตโนมัติ</div>
+        </div>
+        <div class="bg-questOrange-50 p-5 rounded-3xl border-2 border-questOrange-200 shadow-card">
+          <div class="text-xs font-bold text-questOrange-700">กลุ่มปานกลาง / พัฒนาทักษะ</div>
+          <div class="text-3xl font-display font-bold text-questOrange-600 mt-1">16 คน <span class="text-sm font-medium text-warmBrown-700">(50.0%)</span></div>
+          <div class="text-xs text-warmBrown-600 mt-2">กำลังฝึกทักษะตามแผนที่ภารกิจ</div>
+        </div>
+        <div class="bg-questPurple-50 p-5 rounded-3xl border-2 border-questPurple-200 shadow-card">
+          <div class="text-xs font-bold text-questPurple-700">กลุ่มเรียนรู้เร็ว / ด่านท้าทาย</div>
+          <div class="text-3xl font-display font-bold text-questPurple-600 mt-1">7 คน <span class="text-sm font-medium text-warmBrown-700">(21.9%)</span></div>
+          <div class="text-xs text-warmBrown-600 mt-2">ปลดล็อกด่านบอส ไม่เบื่อในห้องเรียน</div>
+        </div>
+      </div>
+
+      <!-- กราฟวิเคราะห์จุดอ่อนรายตัวชี้วัด & ตารางติดตามผลรายบุคคล -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        
+        <!-- กราฟจุดอ่อนรายตัวชี้วัด (เขียว, ส้ม, แดง) -->
+        <div class="lg:col-span-6 bg-white p-6 rounded-3xl border border-warmCream-200 shadow-card space-y-4">
+          <h3 class="font-display font-bold text-lg text-warmBrown-800 flex items-center gap-2">
+            <span>📉</span>
+            <span>วิเคราะห์ความเข้าใจรายตัวชี้วัดทั้งห้องเรียน</span>
+          </h3>
+          <p class="text-xs text-warmBrown-600">ร้อยละของนักเรียนที่ผ่านเกณฑ์ความเข้าใจในแต่ละทักษะย่อย</p>
+          
+          <div class="space-y-4 pt-2">
+            <div>
+              <div class="flex justify-between text-sm font-semibold mb-1">
+                <span class="text-warmBrown-800">1. การแยกส่วนประกอบ (Decomposition)</span>
+                <span class="text-questGreen-600 font-bold">84% ผ่านเกณฑ์ดี</span>
+              </div>
+              <div class="w-full h-3.5 bg-warmCream-100 rounded-full overflow-hidden border border-warmCream-200">
+                <div class="h-full bg-questGreen-500 rounded-full" style="width: 84%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm font-semibold mb-1">
+                <span class="text-warmBrown-800">2. การหารูปแบบ (Pattern Recognition)</span>
+                <span class="text-questOrange-600 font-bold">68% ระดับปานกลาง</span>
+              </div>
+              <div class="w-full h-3.5 bg-warmCream-100 rounded-full overflow-hidden border border-warmCream-200">
+                <div class="h-full bg-questOrange-500 rounded-full" style="width: 68%"></div>
+              </div>
+            </div>
+
+            <div>
+              <div class="flex justify-between text-sm font-semibold mb-1">
+                <span class="text-warmBrown-800">3. การออกแบบอัลกอริทึม (Algorithm Design)</span>
+                <span class="text-questRed-600 font-bold">46% ต้องเร่งซ่อมเสริม</span>
+              </div>
+              <div class="w-full h-3.5 bg-warmCream-100 rounded-full overflow-hidden border border-warmCream-200">
+                <div class="h-full bg-questRed-500 rounded-full" style="width: 46%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-questPink-50 p-4 rounded-2xl border border-questPink-200 text-xs sm:text-sm text-warmBrown-800 space-y-1">
+            <div class="font-bold text-questPink-700">💡 ข้อเสนอแนะการสอนซ่อมเสริมจาก AI:</div>
+            <p class="leading-relaxed">
+              นักเรียนร้อยละ 54 ยังสับสนเรื่อง <strong>เงื่อนไขวนซ้ำ (Loop) ในการออกแบบอัลกอริทึม</strong> แนะนำให้ครูยกตัวอย่างผังงาน (Flowchart) ในชีวิตประจำวัน 10 นาทีต้นคาบ ส่วนผู้เรียน 7 คนที่ผ่านเกณฑ์แล้วสามารถทำโจทย์ท้าทายระดับสูงในระบบต่อได้ทันที
+            </p>
+          </div>
+        </div>
+
+        <!-- ตารางรายชื่อนักเรียนและสถานะปัจจุบัน -->
+        <div class="lg:col-span-6 bg-white p-6 rounded-3xl border border-warmCream-200 shadow-card space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="font-display font-bold text-lg text-warmBrown-800 flex items-center gap-2">
+              <span>👩‍🎓</span>
+              <span>สถานะผู้เรียนรายบุคคล (อัปเดตเรียลไทม์)</span>
+            </h3>
+            <span class="text-xs font-semibold px-2.5 py-1 rounded-full bg-questGreen-100 text-questGreen-700">ออนไลน์</span>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="border-b-2 border-warmCream-200 text-xs text-warmBrown-600">
+                  <th class="py-2.5 px-2">ผู้เรียน</th>
+                  <th class="py-2.5 px-2">ระดับความเร็ว</th>
+                  <th class="py-2.5 px-2">จุดที่ AI เสริมให้</th>
+                  <th class="py-2.5 px-2 text-right">ความคืบหน้า</th>
+                </tr>
+              </thead>
+              <tbody id="teacher-student-table" class="text-xs sm:text-sm divide-y divide-warmCream-100">
+                <!-- สร้างด้วย JavaScript -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </main>
+
+  <!-- =====================================================================
+       ส่วนที่ 3: กล่องแชตผู้ช่วยติว AI อัจฉริยะ (ธีมสีม่วง-ชมพู-น้ำตาล)
+       ===================================================================== -->
+  <div id="ai-tutor-drawer" class="fixed inset-y-0 right-0 z-40 w-full sm:w-[430px] bg-white border-l-2 border-questPurple-200 shadow-2xl transform translate-x-full transition-transform duration-300 flex flex-col">
+    
+    <!-- ส่วนหัวแชต AI Tutor -->
+    <div class="p-4 bg-gradient-to-r from-questPurple-600 via-questPink-500 to-warmBrown-700 text-white flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-2xl bg-white/95 flex items-center justify-center text-2xl shadow-xs">
+          🤖
+        </div>
+        <div>
+          <h3 class="font-display font-bold text-base">พี่บอท Ed-Quest (ผู้ช่วยติว AI)</h3>
+          <p class="text-xs text-white/90">ถามได้ตลอด 24 ชม. ไกด์ทีละขั้น ไม่เฉลยข้ามขั้น</p>
+        </div>
+      </div>
+      <button onclick="closeTutorDrawer()" class="w-8 h-8 rounded-xl bg-white/20 hover:bg-white/30 text-white flex items-center justify-center font-bold transition cursor-pointer">
+        ✕
+      </button>
+    </div>
+
+    <!-- ปุ่มคำสั่งลัด 3 สีสดใส (ชมพู, ม่วง, ส้ม) -->
+    <div class="p-3 bg-warmCream-100 border-b border-warmCream-200 flex gap-2 overflow-x-auto">
+      <button onclick="sendQuickTutorPrompt('ขอคำใบ้ทีละขั้นสำหรับด่านนี้หน่อยครับ')" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-questPink-100 hover:bg-questPink-200 text-questPink-700 border border-questPink-200 transition cursor-pointer">
+        💡 ขอคำใบ้ทีละขั้น
+      </button>
+      <button onclick="sendQuickTutorPrompt('ช่วยอธิบายเรื่องอัลกอริทึมให้เข้าใจง่ายขึ้นหน่อยครับ')" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-questPurple-100 hover:bg-questPurple-200 text-questPurple-700 border border-questPurple-200 transition cursor-pointer">
+        🎈 อธิบายให้เข้าใจง่ายขึ้น
+      </button>
+      <button onclick="sendQuickTutorPrompt('ขอยกตัวอย่างประกอบในชีวิตประจำวันหน่อยครับ')" class="shrink-0 px-3 py-1.5 rounded-xl text-xs font-bold bg-questOrange-100 hover:bg-questOrange-200 text-questOrange-700 border border-questOrange-200 transition cursor-pointer">
+        🍜 ขอยกตัวอย่างประกอบ
+      </button>
+    </div>
+
+    <!-- พื้นที่ข้อความแชต -->
+    <div id="tutor-messages" class="flex-1 p-4 overflow-y-auto space-y-3 bg-warmCream-50">
+      <div class="flex items-start gap-2.5">
+        <div class="w-8 h-8 rounded-xl bg-questPurple-100 border border-questPurple-200 flex items-center justify-center text-base shrink-0">🤖</div>
+        <div class="bg-white p-3.5 rounded-2xl rounded-tl-none border border-warmCream-200 shadow-xs text-sm text-warmBrown-800 leading-relaxed">
+          สวัสดีครับ! พี่บอท <strong>Ed-Quest AI</strong> ยินดีช่วยเหลือครับ 🌟<br/>
+          มีข้อสงสัยตรงไหนพิมพ์ถามได้เลย ไม่ต้องเขินนะครับ พี่จะค่อยๆ ใบ้แนวคิดให้ทีละขั้นจนเราคิดออกเองแน่นอน!
+        </div>
+      </div>
+    </div>
+
+    <!-- ช่องพิมพ์ข้อความ -->
+    <form onsubmit="handleTutorFormSubmit(event)" class="p-3 bg-white border-t border-warmCream-200 flex items-center gap-2">
+      <input id="tutor-input" type="text" placeholder="พิมพ์คำถามหรือจุดที่ยังไม่เข้าใจ..." class="flex-1 px-4 py-2.5 rounded-xl bg-warmCream-50 border border-warmCream-200 text-sm text-warmBrown-800 focus:outline-none focus:border-questPurple-500" />
+      <button type="submit" class="px-4 py-2.5 rounded-xl bg-questPurple-600 hover:bg-questPurple-700 text-white font-semibold text-sm transition cursor-pointer">
+        ส่ง
+      </button>
+    </form>
+  </div>
+
+  <!-- =====================================================================
+       Modal: ปรับแต่งโปรไฟล์และเลือกตัวละคร (โทนชมพู-น้ำตาล)
+       ===================================================================== -->
+  <div id="profile-modal" class="fixed inset-0 z-50 hidden bg-warmBrown-900/40 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl max-w-md w-full p-6 border-2 border-questPink-200 shadow-2xl space-y-5">
+      <div class="flex items-center justify-between border-b border-warmCream-200 pb-3">
+        <h3 class="font-display font-bold text-lg text-warmBrown-800">🎒 ปรับแต่งโปรไฟล์นักผจญภัย</h3>
+        <button onclick="closeProfileModal()" class="text-warmBrown-500 hover:text-warmBrown-800 font-bold cursor-pointer">✕</button>
+      </div>
+
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-warmBrown-700 mb-1.5">ชื่อผู้เรียน / ชั้นเรียน</label>
+          <input id="input-student-name" type="text" value="น้องต้นกล้า (ม.4/2)" class="w-full px-4 py-2.5 rounded-xl bg-warmCream-50 border border-warmCream-200 text-sm text-warmBrown-800 focus:outline-none focus:border-questPink-500" />
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-warmBrown-700 mb-1.5">เลือกคู่หูตัวละคร (Avatar)</label>
+          <div class="grid grid-cols-5 gap-2" id="avatar-selector">
+            <button type="button" onclick="selectAvatar('🦊')" class="avatar-opt text-2xl p-2.5 rounded-2xl bg-questPink-100 border-2 border-questPink-500 cursor-pointer">🦊</button>
+            <button type="button" onclick="selectAvatar('🐱')" class="avatar-opt text-2xl p-2.5 rounded-2xl bg-warmCream-50 border border-warmCream-200 cursor-pointer">🐱</button>
+            <button type="button" onclick="selectAvatar('🐼')" class="avatar-opt text-2xl p-2.5 rounded-2xl bg-warmCream-50 border border-warmCream-200 cursor-pointer">🐼</button>
+            <button type="button" onclick="selectAvatar('🦉')" class="avatar-opt text-2xl p-2.5 rounded-2xl bg-warmCream-50 border border-warmCream-200 cursor-pointer">🦉</button>
+            <button type="button" onclick="selectAvatar('🚀')" class="avatar-opt text-2xl p-2.5 rounded-2xl bg-warmCream-50 border border-warmCream-200 cursor-pointer">🚀</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeProfileModal()" class="px-4 py-2 rounded-xl text-sm font-medium text-warmBrown-700 hover:bg-warmCream-100 cursor-pointer">ยกเลิก</button>
+        <button onclick="saveProfileModal()" class="px-5 py-2 rounded-xl text-sm font-bold bg-questPink-500 text-white hover:bg-questPink-600 cursor-pointer">บันทึกโปรไฟล์</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       ส่วน JavaScript: ตรรกะระบบ Adaptive Learning, Gamification และ AI Tutor
+       ===================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. คลังข้อสอบวัดพลังพื้นฐาน (5 ข้อ ตรวจสอบตัวสะกดภาษาไทยถูกต้อง 100%)
+    // =========================================================================
+    const diagnosticQuestions = [
+      {
+        id: 1,
+        skillKey: 'decomposition',
+        skillName: 'การแยกส่วนประกอบ (Decomposition)',
+        question: 'หากต้องการพัฒนาแอปพลิเคชัน "สั่งอาหารในโรงอาหารโรงเรียน" ข้อใดคือการใช้แนวคิดการแยกส่วนประกอบ (Decomposition) ได้เหมาะสมที่สุด?',
+        options: [
+          'เขียนโค้ดหน้าชำระเงินให้เสร็จสมบูรณ์ก่อนแล้วค่อยคิดส่วนอื่น',
+          'แบ่งระบบออกเป็นส่วนย่อย เช่น ระบบดูเมนู ระบบตะกร้าสินค้า ระบบแจ้งเตือนคิว และระบบชำระเงิน',
+          'คัดลอกโค้ดจากแอปพลิเคชันส่งอาหารทั่วไปมาใช้งานทั้งหมดทันที',
+          'ออกแบบโลโก้และเลือกโทนสีของแอปพลิเคชันให้สวยงามที่สุดก่อน'
+        ],
+        correctIndex: 1
+      },
+      {
+        id: 2,
+        skillKey: 'decomposition',
+        skillName: 'การแยกส่วนประกอบ (Decomposition)',
+        question: 'รถจักรยานยนต์สตาร์ตไม่ติด ช่างซ่อมจึงแยกตรวจสอบทีละส่วน ได้แก่ แบตเตอรี่ หัวเทียน และน้ำมันเชื้อเพลิง วิธีการนี้ตรงกับแนวคิดใด?',
+        options: [
+          'การคิดเชิงนามธรรม (Abstraction)',
+          'การหารูปแบบ (Pattern Recognition)',
+          'การแยกส่วนประกอบ (Decomposition)',
+          'การออกแบบอัลกอริทึม (Algorithm Design)'
+        ],
+        correctIndex: 2
+      },
+      {
+        id: 3,
+        skillKey: 'pattern',
+        skillName: 'การหารูปแบบ (Pattern Recognition)',
+        question: 'พิจารณาลำดับตัวเลขต่อไปนี้: 3, 7, 15, 31, ... ตัวเลขถัดไปควรเป็นเท่าใด และใช้รูปแบบความสัมพันธ์แบบใด?',
+        options: [
+          '63 (เกิดจากตัวเลขก่อนหน้าคูณ 2 แล้วบวก 1)',
+          '47 (เกิดจากการบวกเพิ่มทีละ 16)',
+          '62 (เกิดจากตัวเลขก่อนหน้าคูณ 2)',
+          '45 (เกิดจากการบวกเพิ่มทีละ 14)'
+        ],
+        correctIndex: 0
+      },
+      {
+        id: 4,
+        skillKey: 'algorithm',
+        skillName: 'การออกแบบอัลกอริทึม (Algorithm Design)',
+        question: 'ในการเขียนโปรแกรมตรวจสอบผลการเรียน หากนักเรียนได้คะแนน 80 ขึ้นไปได้เกรด 4 และคะแนน 70–79 ได้เกรด 3 โครงสร้างควบคุมใดเหมาะสมที่สุด?',
+        options: [
+          'โครงสร้างแบบทำซ้ำ (Loop / Iteration)',
+          'โครงสร้างแบบทางเลือก (Selection / If-Else)',
+          'โครงสร้างแบบตามลำดับ (Sequence) เพียงอย่างเดียว',
+          'โครงสร้างแบบสุ่มค่า (Randomization)'
+        ],
+        correctIndex: 1
+      },
+      {
+        id: 5,
+        skillKey: 'algorithm',
+        skillName: 'การออกแบบอัลกอริทึม (Algorithm Design)',
+        question: 'หากต้องการหาผลรวมของตัวเลขตั้งแต่ 1 ถึง 100 โดยใช้ตัวแปร sum = 0 และ i = 1 ข้อใดคือเงื่อนไขการทำซ้ำ (Loop) ที่ถูกต้อง?',
+        options: [
+          'ทำซ้ำเมื่อ i == 100 เท่านั้น',
+          'ทำซ้ำตราบใดที่ i <= 100 โดยบวก i เข้ากับ sum แล้วเพิ่มค่า i ทีละ 1',
+          'ทำซ้ำตราบใดที่ sum <= 100',
+          'ทำซ้ำไม่รู้จบ (Infinite Loop)'
+        ],
+        correctIndex: 1
+      }
+    ];
+
+    // =========================================================================
+    // 2. คลังภารกิจ (Quests Pool) ตกแต่งแยกสีชัดเจน: ส้ม ชมพู เขียว แดง
+    // =========================================================================
+    const questPool = {
+      decomposition_remedial: {
+        id: 'q_decomp_rem',
+        type: 'ด่านที่ 1: เสริมพื้นฐาน (สีส้ม)',
+        themeColor: 'orange',
+        badgeClass: 'bg-questOrange-100 text-questOrange-700 border border-questOrange-200',
+        borderClass: 'border-questOrange-200 hover:border-questOrange-500',
+        title: 'นักแยกส่วนประกอบมือใหม่ 🧩',
+        skill: 'การแยกส่วนประกอบ (Decomposition)',
+        xp: 100,
+        gems: 20,
+        microContent: `
+          <p><strong>💡 การแยกส่วนประกอบ (Decomposition) คืออะไร?</strong></p>
+          <p>คือการนำปัญหาใหญ่ที่ดูซับซ้อน มา <strong>"แบ่งย่อยออกเป็นส่วนเล็กๆ"</strong> เพื่อให้จัดการและแก้ไขได้ง่ายขึ้นทีละขั้นตอน</p>
+          <div class="bg-white p-3 rounded-xl border border-warmCream-200 mt-2">
+            <strong>ตัวอย่างใกล้ตัว:</strong> การจัดงานทำความสะอาดบ้านทั้งหลัง (งานใหญ่) ➔ แบ่งย่อยเป็น กวาดห้องนั่งเล่น, ล้างจานในครัว, และจัดโต๊ะอ่านหนังสือ
+          </div>
+        `,
+        question: 'นักเรียนได้รับมอบหมายให้จัดงาน "กีฬาสีประจำปีของโรงเรียน" ข้อใดคือการแยกส่วนประกอบของงานนี้ได้ชัดเจนที่สุด?',
+        options: [
+          'สั่งซื้อถ้วยรางวัลทันทีในวันแรก',
+          'แบ่งฝ่ายรับผิดชอบเป็น ฝ่ายสถานที่, ฝ่ายจัดการแข่งขัน, ฝ่ายปฐมพยาบาล และฝ่ายสวัสดิการ',
+          'ให้นักกีฬาทุกคนลงแข่งทุกประเภทพร้อมกัน',
+          'ออกแบบป้ายประชาสัมพันธ์ขนาดใหญ่เพียงอย่างเดียว'
+        ],
+        correctIndex: 1,
+        explanation: 'ถูกต้องครับ! การแบ่งงานใหญ่ตามหน้าที่ย่อย (สถานที่, แข่งขัน, ปฐมพยาบาล, สวัสดิการ) ช่วยให้วางแผนและตรวจสอบปัญหาได้ง่ายขึ้นมาก'
+      },
+      decomposition_standard: {
+        id: 'q_decomp_std',
+        type: 'ด่านที่ 1: พัฒนาทักษะ (สีส้ม)',
+        themeColor: 'orange',
+        badgeClass: 'bg-questOrange-100 text-questOrange-700 border border-questOrange-200',
+        borderClass: 'border-questOrange-200 hover:border-questOrange-500',
+        title: 'สถาปนิกแยกโครงสร้างระบบ 🏗️',
+        skill: 'การแยกส่วนประกอบ (Decomposition)',
+        xp: 120,
+        gems: 25,
+        microContent: `
+          <p><strong>🏗️ การแยกส่วนประกอบในการพัฒนาซอฟต์แวร์</strong></p>
+          <p>เมื่อออกแบบระบบดิจิทัล การแยกส่วนประกอบช่วยให้ทีมงานแบ่งหน้าที่พัฒนาแต่ละส่วนย่อย (Module) พร้อมกันได้โดยไม่สับสน</p>
+          <p class="mt-1"><strong>หลักการ:</strong> แยกตามส่วนรับข้อมูล (Input) ➔ ส่วนประมวลผล (Process) ➔ ส่วนแสดงผล (Output)</p>
+        `,
+        question: 'ระบบ "ตู้จำหน่ายเครื่องดื่มอัตโนมัติอัจฉริยะ" หากแยกส่วนประกอบตามหลักการทำงาน ส่วนใดคือหน่วยประมวลผลหลัก (Process)?',
+        options: [
+          'ช่องรับเหรียญและหน้าจอสแกนคิวอาร์โค้ด',
+          'ระบบตรวจสอบยอดเงินว่าเพียงพอกับราคาเครื่องดื่มที่เลือกหรือไม่',
+          'ช่องรับกระป๋องเครื่องดื่มด้านล่าง',
+          'สติกเกอร์โฆษณาด้านข้างตู้'
+        ],
+        correctIndex: 1,
+        explanation: 'ยอดเยี่ยมครับ! การตรวจสอบเงื่อนไขยอดเงินกับราคาสินค้าคือส่วนประมวลผล (Process) ส่วนการรับเงินคือ Input และการจ่ายเครื่องดื่มคือ Output'
+      },
+      pattern_remedial: {
+        id: 'q_pat_rem',
+        type: 'ด่านที่ 2: เจาะลึกแนวคิด (สีชมพู)',
+        themeColor: 'pink',
+        badgeClass: 'bg-questPink-100 text-questPink-700 border border-questPink-200',
+        borderClass: 'border-questPink-200 hover:border-questPink-500',
+        title: 'นักสืบแกะรอยรูปแบบ 🔍',
+        skill: 'การหารูปแบบ (Pattern Recognition)',
+        xp: 100,
+        gems: 20,
+        microContent: `
+          <p><strong>🔍 การหารูปแบบ (Pattern Recognition) คืออะไร?</strong></p>
+          <p>คือการสังเกต <strong>"ความเหมือนหรือความซ้ำซ้อน"</strong> ของข้อมูล เพื่อใช้คาดเดาสิ่งที่จะเกิดขึ้นต่อไปได้อย่างแม่นยำ</p>
+          <div class="bg-white p-3 rounded-xl border border-warmCream-200 mt-2">
+            <strong>เทคนิคการดูอนุกรม:</strong> ลองหาผลต่างระหว่างตัวเลขที่อยู่ติดกัน เช่น 2, 4, 6, 8 (เพิ่มทีละ +2) หรือสังเกตการคูณ เช่น 2, 4, 8, 16 (คูณ 2)
+          </div>
+        `,
+        question: 'สังเกตรูปแบบรหัสผ่าน: A2, B4, C6, D8, ... รหัสชุดถัดไปคือข้อใด?',
+        options: [
+          'E9',
+          'E10',
+          'F10',
+          'D10'
+        ],
+        correctIndex: 1,
+        explanation: 'เก่งมากครับ! ตัวอักษรเรียงตามลำดับ A → B → C → D → E และตัวเลขเพิ่มขึ้นทีละ 2 (2, 4, 6, 8 → 10) ดังนั้นคำตอบคือ E10'
+      },
+      pattern_standard: {
+        id: 'q_pat_std',
+        type: 'ด่านที่ 2: เจาะลึกแนวคิด (สีชมพู)',
+        themeColor: 'pink',
+        badgeClass: 'bg-questPink-100 text-questPink-700 border border-questPink-200',
+        borderClass: 'border-questPink-200 hover:border-questPink-500',
+        title: 'ผู้เชี่ยวชาญการวิเคราะห์รูปแบบ 📊',
+        skill: 'การหารูปแบบ (Pattern Recognition)',
+        xp: 120,
+        gems: 25,
+        microContent: `
+          <p><strong>📊 การหารูปแบบเพื่อลดความซ้ำซ้อน</strong></p>
+          <p>ในการเขียนโปรแกรม หากเราพบชุดคำสั่งที่ทำงานรูปแบบเดิมซ้ำๆ เราสามารถยุบรวมเป็นฟังก์ชัน (Function) หรือคำสั่งวนซ้ำ (Loop) เพื่อลดความยาวของโค้ดได้</p>
+        `,
+        question: 'ร้านค้าพบว่ายอดขายไอศกรีมจะสูงขึ้นทุกวันศุกร์เวลา 15.30 น. และช่วงอากาศร้อน การนำข้อมูลนี้ไปใช้ประโยชน์ข้อใดตรงกับแนวคิด Pattern Recognition มากที่สุด?',
+        options: [
+          'สั่งวัตถุดิบไอศกรีมเพิ่มล่วงหน้าทุกวันพฤหัสบดีเพื่อรองรับยอดขายวันศุกร์',
+          'ปิดร้านทุกวันศุกร์เวลา 15.30 น.',
+          'เปลี่ยนชื่อร้านใหม่ทุกเดือน',
+          'ลดราคาสินค้าทุกชนิดโดยไม่ดูช่วงเวลา'
+        ],
+        correctIndex: 0,
+        explanation: 'ถูกต้องครับ! การเห็นรูปแบบพฤติกรรมลูกค้าซ้ำๆ ช่วยให้คาดการณ์และวางแผนสำรองสินค้าได้ตรงจุด'
+      },
+      algorithm_remedial: {
+        id: 'q_algo_rem',
+        type: 'ด่านที่ 3: ประยุกต์ใช้ (สีเขียว)',
+        themeColor: 'green',
+        badgeClass: 'bg-questGreen-100 text-questGreen-700 border border-questGreen-200',
+        borderClass: 'border-questGreen-200 hover:border-questGreen-500',
+        title: 'ปูพื้นฐานอัลกอริทึมและทางเลือก 🚦',
+        skill: 'การออกแบบอัลกอริทึม (Algorithm Design)',
+        xp: 120,
+        gems: 30,
+        microContent: `
+          <p><strong>🚦 อัลกอริทึม (Algorithm) คืออะไร?</strong></p>
+          <p>คือ <strong>"ลำดับขั้นตอนการทำงานที่ชัดเจน"</strong> ตั้งแต่เริ่มต้นจนจบงาน</p>
+          <ul class="list-disc pl-5 space-y-1 mt-2">
+            <li><strong>ลำดับ (Sequence):</strong> ทำทีละขั้น 1 → 2 → 3</li>
+            <li><strong>ทางเลือก (If-Else):</strong> ถ้าเงื่อนไขเป็นจริงทำอย่างหนึ่ง ถ้าเท็จทำอีกอย่าง</li>
+            <li><strong>ทำซ้ำ (Loop):</strong> ทำวนซ้ำจนกว่าจะครบตามเงื่อนไขที่กำหนด</li>
+          </ul>
+        `,
+        question: 'หุ่นยนต์ทำความสะอาดถูกตั้งโปรแกรมว่า "เดินตรงไปเรื่อยๆ หากพบกำแพงให้เลี้ยวขวา" คำว่า "หากพบกำแพงให้เลี้ยวขวา" ใช้โครงสร้างควบคุมใด?',
+        options: [
+          'โครงสร้างแบบทางเลือก (Selection / If)',
+          'โครงสร้างแบบสุ่ม (Random)',
+          'โครงสร้างแบบจบการทำงานทันที (Exit)',
+          'ไม่มีเงื่อนไขใดๆ'
+        ],
+        correctIndex: 0,
+        explanation: 'ยอดเยี่ยมครับ! คำว่า "หาก...ให้..." (If...Then...) คือหัวใจของโครงสร้างแบบทางเลือก'
+      },
+      algorithm_standard: {
+        id: 'q_algo_std',
+        type: 'ด่านที่ 3: ประยุกต์ใช้ (สีเขียว)',
+        themeColor: 'green',
+        badgeClass: 'bg-questGreen-100 text-questGreen-700 border border-questGreen-200',
+        borderClass: 'border-questGreen-200 hover:border-questGreen-500',
+        title: 'จอมยุทธ์ผังงานและลูปวนซ้ำ ⚙️',
+        skill: 'การออกแบบอัลกอริทึม (Algorithm Design)',
+        xp: 140,
+        gems: 30,
+        microContent: `
+          <p><strong>⚙️ การควบคุมการทำซ้ำ (Loop Control)</strong></p>
+          <p>หัวใจสำคัญของการเขียน Loop คือต้องมี <strong>ตัวแปรนับรอบ (Counter)</strong> และ <strong>เงื่อนไขหยุด (Stop Condition)</strong> มิฉะนั้นโปรแกรมจะทำงานไม่รู้จบ (Infinite Loop)</p>
+          <div class="bg-white p-3 rounded-xl border border-warmCream-200 mt-2 font-mono text-xs">
+            count = 1<br/>
+            while count <= 5:<br/>
+            &nbsp;&nbsp;print("สวัสดี")<br/>
+            &nbsp;&nbsp;count = count + 1
+          </div>
+        `,
+        question: 'จากโค้ดตัวอย่างด้านซ้าย หากลืมเขียนบรรทัด "count = count + 1" จะเกิดผลลัพธ์อย่างไร?',
+        options: [
+          'พิมพ์คำว่า สวัสดี ออกมา 5 ครั้งตามปกติ',
+          'เกิดการวนซ้ำไม่รู้จบ (Infinite Loop) เพราะค่า count จะเป็น 1 ตลอดไป',
+          'ไม่พิมพ์คำว่า สวัสดี ออกมาเลยแม้แต่ครั้งเดียว',
+          'พิมพ์คำว่า สวัสดี ออกมา 1 ครั้งแล้วหยุด'
+        ],
+        correctIndex: 1,
+        explanation: 'แม่นยำมากครับ! เมื่อ count ไม่ถูกเพิ่มค่า เงื่อนไข count <= 5 จะเป็นจริงตลอดกาล ทำให้เกิดการวนซ้ำไม่รู้จบ'
+      },
+      boss_challenge: {
+        id: 'q_boss',
+        type: 'ด่านที่ 4: ด่านบอสพิชิตบทเรียน (สีแดง)',
+        themeColor: 'red',
+        badgeClass: 'bg-questRed-100 text-questRed-700 border border-questRed-200',
+        borderClass: 'border-questRed-200 hover:border-questRed-500',
+        title: 'ด่านบอส: ออกแบบถังขยะคัดแยกอัจฉริยะ 🏆',
+        skill: 'การบูรณาการแนวคิดเชิงคำนวณทั้ง 3 ด้าน',
+        xp: 200,
+        gems: 50,
+        microContent: `
+          <p><strong>🏆 บททดสอบรวมพลังทั้ง 3 ทักษะ!</strong></p>
+          <p>การแก้ปัญหาในชีวิตจริงต้องผสานทั้ง <strong>การแยกส่วนประกอบ + การหารูปแบบ + การออกแบบอัลกอริทึม</strong> เข้าด้วยกันอย่างเป็นระบบ</p>
+          <p class="mt-1">พิจารณาโจทย์ทางขวาอย่างรอบคอบ สามารถกดปุ่ม <strong>"ขอคำใบ้ทีละขั้น"</strong> จากพี่บอท AI ได้หากต้องการครับ!</p>
+        `,
+        question: 'คุณต้องการสร้างถังขยะอัจฉริยะที่คัดแยก "ขวดพลาสติกใส" ออกจากขยะทั่วไปโดยอัตโนมัติ ลำดับอัลกอริทึมใดทำงานได้ถูกต้องและครบถ้วนที่สุด?',
+        options: [
+          'เปิดฝาถัง ➔ ถ่ายภาพขยะ ➔ ตรวจสอบรูปแบบความใสและรูปทรงขวด ➔ ถ้าใช่ให้เปิดช่องขวดพลาสติก ถ้าไม่ใช่ให้เปิดช่องขยะทั่วไป',
+          'เปิดช่องขวดพลาสติกทิ้งไว้ตลอดเวลา ➔ ถ่ายภาพขยะ ➔ ปิดฝาถัง',
+          'ชั่งน้ำหนักขยะ ➔ ถ้าหนักเกิน 1 กิโลกรัมให้ทิ้งลงช่องขวดพลาสติกทั้งหมด',
+          'วนลูปเปิดและปิดฝาถัง 10 รอบโดยไม่ต้องใช้เซนเซอร์ตรวจจับ'
+        ],
+        correctIndex: 0,
+        explanation: 'สุดยอดมากครับ! คุณพิชิตด่านบอสสำเร็จ ลำดับขั้นตอนรับข้อมูล (ถ่ายภาพ) ➔ วิเคราะห์รูปแบบ (Pattern) ➔ ตัดสินใจเลือกช่องทาง (If-Else) ถูกต้องสมบูรณ์แบบ!'
+      }
+    };
+
+    // =========================================================================
+    // 3. สถานะของแอปพลิเคชัน (Application State)
+    // =========================================================================
+    const state = {
+      studentName: 'น้องต้นกล้า (ม.4/2)',
+      avatar: '🦊',
+      level: 1,
+      xp: 40,
+      maxXp: 200,
+      gems: 50,
+      currentDiagIndex: 0,
+      diagAnswers: [null, null, null, null, null],
+      diagCompleted: false,
+      paceLevel: 'ระดับปานกลาง (พัฒนาทักษะ)',
+      skillScores: {
+        decomposition: 1,
+        pattern: 1,
+        algorithm: 1
+      },
+      activeQuests: [],
+      completedQuestIds: [],
+      currentOpenQuestId: null,
+      selectedQuestOption: null
+    };
+
+    const mockClassStudents = [
+      { name: 'น.ส.พิมพ์ชนก ใจดี', pace: 'เรียนรู้เร็ว', badge: 'bg-questPurple-100 text-questPurple-700', focus: 'ด่านบอสประยุกต์', progress: '4/4 ด่าน (100%)' },
+      { name: 'นายธนกฤต รักเรียน', pace: 'ต้องซ่อมเสริม', badge: 'bg-questRed-100 text-questRed-700', focus: 'ปูพื้นฐานอัลกอริทึม', progress: '2/4 ด่าน (50%)' },
+      { name: 'น.ส.กัญญาวีร์ สุขสันต์', pace: 'ปานกลาง', badge: 'bg-questOrange-100 text-questOrange-700', focus: 'ผังงานและลูปวนซ้ำ', progress: '3/4 ด่าน (75%)' },
+      { name: 'นายศุภกร กล้าหาญ', pace: 'ต้องซ่อมเสริม', badge: 'bg-questPink-100 text-questPink-700', focus: 'การหารูปแบบ & ลูป', progress: '1/4 ด่าน (25%)' }
+    ];
+
+    // =========================================================================
+    // 4. ฟังก์ชันเริ่มต้นระบบและการจัดการ UI
+    // =========================================================================
+    window.onload = function () {
+      renderDiagQuestion();
+      buildPersonalizedQuests();
+      renderTeacherTable();
+      updateHUD();
+    };
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      const bgStyle = type === 'success'
+        ? 'bg-questGreen-100 border-questGreen-500 text-questGreen-700'
+        : type === 'warning'
+        ? 'bg-questOrange-100 border-questOrange-500 text-questOrange-700'
+        : 'bg-questPurple-100 border-questPurple-500 text-questPurple-700';
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-2xl border-2 shadow-lg text-sm font-semibold flex items-center gap-2 transition-all duration-300 transform translate-y-2 opacity-0 ${bgStyle}`;
+      toast.innerHTML = `<span>${message}</span>`;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.remove('translate-y-2', 'opacity-0');
+      });
+
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-y-2');
+        setTimeout(() => toast.remove(), 300);
+      }, 3200);
+    }
+
+    function switchAppMode(mode) {
+      const viewStudent = document.getElementById('view-student');
+      const viewTeacher = document.getElementById('view-teacher');
+      const btnStudent = document.getElementById('btn-mode-student');
+      const btnTeacher = document.getElementById('btn-mode-teacher');
+      const studentHud = document.getElementById('student-hud');
+
+      if (mode === 'student') {
+        viewStudent.classList.remove('hidden');
+        viewTeacher.classList.add('hidden');
+        studentHud.classList.remove('hidden');
+
+        btnStudent.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-questGreen-600 text-white shadow-xs cursor-pointer';
+        btnTeacher.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-questPurple-700 hover:bg-questPurple-100 cursor-pointer';
+      } else {
+        viewStudent.classList.add('hidden');
+        viewTeacher.classList.remove('hidden');
+        studentHud.classList.add('hidden');
+        renderTeacherTable();
+
+        btnTeacher.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 bg-questPurple-600 text-white shadow-xs cursor-pointer';
+        btnStudent.className = 'px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold transition flex items-center gap-1.5 text-questGreen-700 hover:bg-questGreen-100 cursor-pointer';
+      }
+    }
+
+    function setStudentStep(step) {
+      const secDiag = document.getElementById('section-diagnosis');
+      const secMap = document.getElementById('section-questmap');
+      const tab1 = document.getElementById('tab-step-1');
+      const tab2 = document.getElementById('tab-step-2');
+
+      if (step === 'diagnosis') {
+        secDiag.classList.remove('hidden');
+        secMap.classList.add('hidden');
+        tab1.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 bg-questOrange-100 text-questOrange-700 border border-questOrange-200 cursor-pointer';
+        tab2.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 text-warmBrown-700 hover:bg-warmCream-100 cursor-pointer';
+      } else {
+        secDiag.classList.add('hidden');
+        secMap.classList.remove('hidden');
+        tab2.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 bg-questGreen-100 text-questGreen-700 border border-questGreen-200 cursor-pointer';
+        tab1.className = 'px-4 py-2 rounded-xl text-sm font-semibold transition flex items-center gap-2 text-warmBrown-700 hover:bg-warmCream-100 cursor-pointer';
+        renderQuestMap();
+      }
+    }
+
+    function updateHUD() {
+      document.getElementById('hud-name').textContent = state.studentName;
+      document.getElementById('hud-avatar').textContent = state.avatar;
+      document.getElementById('hud-level').textContent = state.level;
+      document.getElementById('hud-xp').textContent = state.xp;
+      document.getElementById('hud-max-xp').textContent = state.maxXp;
+      document.getElementById('hud-gems').textContent = state.gems;
+
+      const pct = Math.min(100, Math.round((state.xp / state.maxXp) * 100));
+      document.getElementById('hud-xp-bar').style.width = `${pct}%`;
+
+      let rankTitle = `นักสำรวจมือใหม่ (Lv.${state.level})`;
+      if (state.level >= 3) rankTitle = `ปรมาจารย์อัลกอริทึม 👑 (Lv.${state.level})`;
+      else if (state.level === 2) rankTitle = `ผู้พิชิตตรรกะ ⚡ (Lv.${state.level})`;
+      document.getElementById('hud-rank').textContent = rankTitle;
+    }
+
+    function addXPAndGems(xpGain, gemGain) {
+      state.xp += xpGain;
+      state.gems += gemGain;
+      while (state.xp >= state.maxXp) {
+        state.xp -= state.maxXp;
+        state.level += 1;
+        state.maxXp = Math.round(state.maxXp * 1.3);
+        showToast(`🎉 เลเวลอัป! คุณเลื่อนขั้นเป็น เลเวล ${state.level} แล้ว!`, 'success');
+      }
+      updateHUD();
+    }
+
+    // =========================================================================
+    // 5. ระบบแบบทดสอบวัดพลังพื้นฐาน (ขั้นตอนที่ 1)
+    // =========================================================================
+    function renderDiagQuestion() {
+      const idx = state.currentDiagIndex;
+      const q = diagnosticQuestions[idx];
+
+      document.getElementById('diag-progress-text').textContent = `ข้อที่ ${idx + 1} จาก ${diagnosticQuestions.length}`;
+      document.getElementById('diag-skill-badge').textContent = `ทักษะ: ${q.skillName}`;
+      document.getElementById('diag-progress-bar').style.width = `${((idx + 1) / diagnosticQuestions.length) * 100}%`;
+      document.getElementById('diag-question-text').textContent = `${idx + 1}. ${q.question}`;
+
+      const optionsContainer = document.getElementById('diag-options');
+      optionsContainer.innerHTML = '';
+
+      q.options.forEach((optText, optIdx) => {
+        const isSelected = state.diagAnswers[idx] === optIdx;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => selectDiagOption(optIdx);
+        btn.className = `w-full text-left p-4 rounded-2xl border-2 transition flex items-center gap-3 cursor-pointer ${
+          isSelected
+            ? 'bg-questPurple-50 border-questPurple-500 text-warmBrown-900 font-semibold shadow-xs'
+            : 'bg-warmCream-50 border-warmCream-200 hover:bg-warmCream-100 text-warmBrown-800'
+        }`;
+
+        const choiceLabel = ['ก', 'ข', 'ค', 'ง'][optIdx];
+        btn.innerHTML = `
+          <span class="w-8 h-8 rounded-xl flex items-center justify-center text-sm font-bold shrink-0 ${
+            isSelected ? 'bg-questPurple-600 text-white' : 'bg-white text-warmBrown-800 border border-warmCream-200'
+          }">${choiceLabel}</span>
+          <span class="text-sm sm:text-base leading-relaxed">${optText}</span>
+        `;
+        optionsContainer.appendChild(btn);
+      });
+
+      document.getElementById('btn-diag-prev').disabled = idx === 0;
+      const nextBtn = document.getElementById('btn-diag-next');
+      if (idx === diagnosticQuestions.length - 1) {
+        nextBtn.innerHTML = '✨ ส่งคำตอบเพื่อวิเคราะห์ผล';
+        nextBtn.className = 'px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-questGreen-600 hover:bg-questGreen-700 transition shadow-sm cursor-pointer';
+      } else {
+        nextBtn.innerHTML = 'ข้อถัดไป →';
+        nextBtn.className = 'px-6 py-2.5 rounded-xl text-sm font-bold text-white bg-questGreen-600 hover:bg-questGreen-700 transition shadow-xs cursor-pointer';
+      }
+    }
+
+    function selectDiagOption(optIdx) {
+      state.diagAnswers[state.currentDiagIndex] = optIdx;
+      renderDiagQuestion();
+    }
+
+    function prevDiagQuestion() {
+      if (state.currentDiagIndex > 0) {
+        state.currentDiagIndex--;
+        renderDiagQuestion();
+      }
+    }
+
+    function nextDiagQuestion() {
+      if (state.diagAnswers[state.currentDiagIndex] === null) {
+        showToast('กรุณาเลือกคำตอบก่อนไปข้อถัดไปนะครับ 😊', 'warning');
+        return;
+      }
+      if (state.currentDiagIndex < diagnosticQuestions.length - 1) {
+        state.currentDiagIndex++;
+        renderDiagQuestion();
+      } else {
+        evaluateDiagnosis();
+      }
+    }
+
+    function autoFillDemoDiagnosis() {
+      // จำลองกรณี: ผ่าน Decomposition (2/2 สีเขียว), ปานกลาง Pattern (1/1 สีส้ม), อ่อน Algorithm (0/2 สีแดง)
+      state.diagAnswers = [1, 2, 0, 0, 0];
+      state.currentDiagIndex = 4;
+      renderDiagQuestion();
+      evaluateDiagnosis();
+      showToast('⚡ จำลองคำตอบและวิเคราะห์จุดอ่อนเรียบร้อยแล้ว!', 'info');
+    }
+
+    function evaluateDiagnosis() {
+      let decompScore = 0;
+      let patternScore = 0;
+      let algoScore = 0;
+
+      diagnosticQuestions.forEach((q, idx) => {
+        if (state.diagAnswers[idx] === q.correctIndex) {
+          if (q.skillKey === 'decomposition') decompScore++;
+          if (q.skillKey === 'pattern') patternScore++;
+          if (q.skillKey === 'algorithm') algoScore++;
+        }
+      });
+
+      state.skillScores = {
+        decomposition: decompScore,
+        pattern: patternScore,
+        algorithm: algoScore
+      };
+      state.diagCompleted = true;
+
+      const totalScore = decompScore + patternScore + algoScore;
+
+      let paceText = '';
+      let aiComment = '';
+      if (totalScore <= 2) {
+        paceText = 'ระดับพื้นฐาน (เน้นเสริมความเข้าใจทีละขั้น)';
+        aiComment = 'ไม่ต้องกังวลเลยครับ! พี่บอทพบว่าเรายังสับสนหลักการพื้นฐานบางจุด จึงจัดเตรียม "ภารกิจปูพื้นฐานพร้อมใบความรู้ฉบับย่อย" มาให้ครบทุกด่าน ค่อยๆ เก็บแต้มไปด้วยกันนะ!';
+      } else if (totalScore <= 4) {
+        paceText = 'ระดับปานกลาง (พัฒนาทักษะเฉพาะจุด)';
+        aiComment = `ทำได้ดีมากครับ (ได้ ${totalScore} จาก 5 คะแนน)! คุณเข้าใจส่วนที่ทำได้แล้ว AI จึงจัด "ภารกิจซ่อมเสริมเฉพาะจุดที่พลาด" มาให้โดยตรง ช่วยให้เรียนรู้ได้ตรงจุดและไม่น่าเบื่อครับ!`;
+      } else {
+        paceText = 'ระดับก้าวหน้า (ท้าทายศักยภาพสูง)';
+        aiComment = 'สุดยอดมากครับ (เต็ม 5 จาก 5 คะแนน)! พื้นฐานของคุณแน่นมาก AI จึงปลดล็อก "ภารกิจระดับสูงและด่านบอสประยุกต์" เพื่อให้คุณได้ฝึกทักษะขั้นสูงอย่างเต็มที่!';
+      }
+
+      state.paceLevel = paceText;
+      buildPersonalizedQuests();
+
+      document.getElementById('quiz-container').classList.add('hidden');
+      const resultBox = document.getElementById('diag-result-box');
+      resultBox.classList.remove('hidden');
+      document.getElementById('result-pace-badge').textContent = paceText;
+      document.getElementById('ai-diagnosis-comment').textContent = aiComment;
+
+      // การ์ดคะแนนย่อย 3 ทักษะ (สีเขียว = ดี, สีส้ม = ปานกลาง, สีแดง = ต้องซ่อมเสริม)
+      const breakdownEl = document.getElementById('skill-breakdown-cards');
+      breakdownEl.innerHTML = `
+        <div class="p-4 rounded-2xl border-2 ${decompScore === 2 ? 'bg-questGreen-50 border-questGreen-200' : 'bg-questRed-50 border-questRed-200'}">
+          <div class="text-xs font-bold text-warmBrown-600">1. การแยกส่วนประกอบ</div>
+          <div class="text-xl font-display font-bold text-warmBrown-800 mt-1">${decompScore} / 2 คะแนน</div>
+          <div class="text-xs mt-1 font-bold ${decompScore === 2 ? 'text-questGreen-700' : 'text-questRed-600'}">
+            ${decompScore === 2 ? '✅ ระดับเชี่ยวชาญ (ผ่านเกณฑ์)' : '🚨 ต้องซ่อมเสริม (จัดด่านปูพื้นฐาน)'}
+          </div>
+        </div>
+        <div class="p-4 rounded-2xl border-2 ${patternScore === 1 ? 'bg-questOrange-50 border-questOrange-200' : 'bg-questRed-50 border-questRed-200'}">
+          <div class="text-xs font-bold text-warmBrown-600">2. การหารูปแบบ</div>
+          <div class="text-xl font-display font-bold text-warmBrown-800 mt-1">${patternScore} / 1 คะแนน</div>
+          <div class="text-xs mt-1 font-bold ${patternScore === 1 ? 'text-questOrange-700' : 'text-questRed-600'}">
+            ${patternScore === 1 ? '⚡ ระดับปานกลาง (พัฒนาทักษะ)' : '🚨 ต้องซ่อมเสริม (จัดด่านปูพื้นฐาน)'}
+          </div>
+        </div>
+        <div class="p-4 rounded-2xl border-2 ${algoScore === 2 ? 'bg-questGreen-50 border-questGreen-200' : 'bg-questRed-50 border-questRed-200'}">
+          <div class="text-xs font-bold text-warmBrown-600">3. การออกแบบอัลกอริทึม</div>
+          <div class="text-xl font-display font-bold text-warmBrown-800 mt-1">${algoScore} / 2 คะแนน</div>
+          <div class="text-xs mt-1 font-bold ${algoScore === 2 ? 'text-questGreen-700' : 'text-questRed-600'}">
+            ${algoScore === 2 ? '✅ ระดับเชี่ยวชาญ (ผ่านเกณฑ์)' : '🚨 ต้องซ่อมเสริม (จัดด่านปูพื้นฐาน)'}
+          </div>
+        </div>
+      `;
+
+      addXPAndGems(50, 10);
+      showToast('🎉 วิเคราะห์ผลสำเร็จ! ได้รับ +50 XP และสร้างแผนที่ภารกิจเฉพาะคุณแล้ว', 'success');
+    }
+
+    function resetDiagnosis() {
+      state.currentDiagIndex = 0;
+      state.diagAnswers = [null, null, null, null, null];
+      state.diagCompleted = false;
+      document.getElementById('diag-result-box').classList.add('hidden');
+      document.getElementById('quiz-container').classList.remove('hidden');
+      renderDiagQuestion();
+    }
+
+    // =========================================================================
+    // 6. ระบบสร้างและแสดงแผนที่ภารกิจเฉพาะบุคคล (ขั้นตอนที่ 2)
+    // =========================================================================
+    function buildPersonalizedQuests() {
+      const q1 = state.skillScores.decomposition < 2 ? questPool.decomposition_remedial : questPool.decomposition_standard;
+      const q2 = state.skillScores.pattern < 1 ? questPool.pattern_remedial : questPool.pattern_standard;
+      const q3 = state.skillScores.algorithm < 2 ? questPool.algorithm_remedial : questPool.algorithm_standard;
+      const q4 = questPool.boss_challenge;
+
+      state.activeQuests = [q1, q2, q3, q4];
+      state.completedQuestIds = [];
+      renderQuestMap();
+    }
+
+    function renderQuestMap() {
+      const grid = document.getElementById('quest-cards-grid');
+      grid.innerHTML = '';
+
+      document.getElementById('map-track-badge').textContent = `เส้นทาง: ${state.paceLevel}`;
+      const completedCount = state.completedQuestIds.length;
+      const totalCount = state.activeQuests.length;
+      const pct = Math.round((completedCount / totalCount) * 100);
+
+      document.getElementById('quest-completion-text').textContent = `${completedCount} / ${totalCount} ด่าน`;
+      document.getElementById('quest-completion-pct').textContent = `${pct}%`;
+
+      state.activeQuests.forEach((quest, index) => {
+        const isCompleted = state.completedQuestIds.includes(quest.id);
+        const isUnlocked = index === 0 || state.completedQuestIds.includes(state.activeQuests[index - 1].id);
+
+        const card = document.createElement('div');
+        card.className = `rounded-3xl p-6 border-2 transition relative flex flex-col justify-between gap-4 ${
+          isCompleted
+            ? 'bg-questGreen-50/70 border-questGreen-500 shadow-card'
+            : isUnlocked
+            ? `bg-white ${quest.borderClass} shadow-soft`
+            : 'bg-warmCream-100/80 border-warmCream-200 opacity-75'
+        }`;
+
+        const statusBadge = isCompleted
+          ? '<span class="px-3 py-1 rounded-full text-xs font-bold bg-questGreen-600 text-white">✅ พิชิตด่านแล้ว</span>'
+          : isUnlocked
+          ? '<span class="px-3 py-1 rounded-full text-xs font-bold bg-questPurple-100 text-questPurple-700 border border-questPurple-200">🔓 ปลดล็อกแล้ว</span>'
+          : '<span class="px-3 py-1 rounded-full text-xs font-bold bg-warmCream-200 text-warmBrown-700">🔒 ล็อก (ผ่านด่านก่อนหน้า)</span>';
+
+        // สีปุ่มเริ่มภารกิจตามธีมของแต่ละด่าน
+        const btnThemeMap = {
+          orange: 'bg-questOrange-500 hover:bg-questOrange-600 text-white',
+          pink: 'bg-questPink-500 hover:bg-questPink-600 text-white',
+          green: 'bg-questGreen-600 hover:bg-questGreen-700 text-white',
+          red: 'bg-questRed-600 hover:bg-questRed-700 text-white'
+        };
+
+        card.innerHTML = `
+          <div class="space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <span class="text-xs font-bold px-3 py-1 rounded-full ${quest.badgeClass}">${quest.type}</span>
+              ${statusBadge}
+            </div>
+            <h3 class="font-display text-lg sm:text-xl font-bold text-warmBrown-800">${quest.title}</h3>
+            <p class="text-xs sm:text-sm text-warmBrown-700">
+              ทักษะเป้าหมาย: <strong class="text-warmBrown-900">${quest.skill}</strong><br/>
+              รางวัลภารกิจ: <span class="text-questOrange-700 font-bold">+${quest.xp} XP</span> และ <span class="text-questPink-700 font-bold">+${quest.gems} 💎</span>
+            </p>
+          </div>
+
+          <div class="pt-2">
+            ${
+              isUnlocked
+                ? `<button onclick="openQuestWorkspace('${quest.id}')" class="w-full py-3 px-4 rounded-2xl text-sm font-bold transition shadow-xs cursor-pointer ${
+                    isCompleted
+                      ? 'bg-white hover:bg-questGreen-50 text-questGreen-700 border-2 border-questGreen-500'
+                      : btnThemeMap[quest.themeColor]
+                  }">
+                    ${isCompleted ? '📖 ทบทวนใบความรู้และโจทย์อีกครั้ง' : '⚔️ เข้าสู่ภารกิจพิชิตด่าน'}
+                  </button>`
+                : `<button disabled class="w-full py-3 px-4 rounded-2xl text-sm font-semibold bg-warmCream-200 text-warmBrown-500 cursor-not-allowed">
+                    🔒 ต้องพิชิตด่านที่ ${index} ก่อนเพื่อปลดล็อก
+                  </button>`
+            }
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    }
+
+    function openQuestWorkspace(questId) {
+      const quest = state.activeQuests.find(q => q.id === questId);
+      if (!quest) return;
+
+      state.currentOpenQuestId = questId;
+      state.selectedQuestOption = null;
+
+      const tagEl = document.getElementById('ws-quest-tag');
+      tagEl.textContent = quest.type;
+      tagEl.className = `text-xs font-bold px-3 py-1 rounded-full ${quest.badgeClass}`;
+
+      document.getElementById('ws-quest-reward').textContent = `รางวัล: +${quest.xp} XP | +${quest.gems} 💎`;
+      document.getElementById('ws-quest-title').textContent = quest.title;
+      document.getElementById('ws-micro-content').innerHTML = quest.microContent;
+      document.getElementById('ws-challenge-question').textContent = quest.question;
+
+      const feedbackBox = document.getElementById('ws-feedback-box');
+      feedbackBox.classList.add('hidden');
+      feedbackBox.innerHTML = '';
+
+      renderQuestChallengeOptions(quest);
+
+      const ws = document.getElementById('quest-workspace');
+      ws.classList.remove('hidden');
+      ws.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    function closeQuestWorkspace() {
+      document.getElementById('quest-workspace').classList.add('hidden');
+      state.currentOpenQuestId = null;
+    }
+
+    function renderQuestChallengeOptions(quest) {
+      const container = document.getElementById('ws-challenge-options');
+      container.innerHTML = '';
+
+      quest.options.forEach((opt, idx) => {
+        const isSelected = state.selectedQuestOption === idx;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.onclick = () => {
+          state.selectedQuestOption = idx;
+          renderQuestChallengeOptions(quest);
+        };
+        btn.className = `w-full text-left p-3.5 rounded-2xl border-2 transition flex items-center gap-3 cursor-pointer ${
+          isSelected
+            ? 'bg-questPurple-50 border-questPurple-500 text-warmBrown-900 font-semibold'
+            : 'bg-warmCream-50 border-warmCream-200 hover:bg-warmCream-100 text-warmBrown-800'
+        }`;
+        const label = ['ก', 'ข', 'ค', 'ง'][idx];
+        btn.innerHTML = `
+          <span class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-bold shrink-0 ${
+            isSelected ? 'bg-questPurple-600 text-white' : 'bg-white text-warmBrown-800 border border-warmCream-200'
+          }">${label}</span>
+          <span class="text-sm leading-relaxed">${opt}</span>
+        `;
+        container.appendChild(btn);
+      });
+    }
+
+    function submitQuestAnswer() {
+      const quest = state.activeQuests.find(q => q.id === state.currentOpenQuestId);
+      if (!quest) return;
+
+      if (state.selectedQuestOption === null) {
+        showToast('กรุณาเลือกคำตอบก่อนส่งภารกิจนะครับ 😊', 'warning');
+        return;
+      }
+
+      const feedbackBox = document.getElementById('ws-feedback-box');
+      feedbackBox.classList.remove('hidden');
+
+      if (state.selectedQuestOption === quest.correctIndex) {
+        const isFirstClear = !state.completedQuestIds.includes(quest.id);
+        if (isFirstClear) {
+          state.completedQuestIds.push(quest.id);
+          addXPAndGems(quest.xp, quest.gems);
+        }
+
+        feedbackBox.className = 'rounded-2xl p-4 text-sm leading-relaxed bg-questGreen-50 border-2 border-questGreen-500 text-warmBrown-900';
+        feedbackBox.innerHTML = `
+          <div class="font-bold text-base text-questGreen-700 mb-1">🎉 ยินดีด้วย! คุณพิชิตภารกิจสำเร็จ!</div>
+          <p>${quest.explanation}</p>
+          ${isFirstClear ? `<div class="mt-2 font-bold text-questGreen-700">ได้รับรางวัล +${quest.xp} XP และ +${quest.gems} 💎 (ปลดล็อกด่านถัดไปแล้ว!)</div>` : ''}
+        `;
+        renderQuestMap();
+        renderTeacherTable();
+      } else {
+        feedbackBox.className = 'rounded-2xl p-4 text-sm leading-relaxed bg-questRed-50 border-2 border-questRed-500 text-warmBrown-900';
+        feedbackBox.innerHTML = `
+          <div class="font-bold text-base text-questRed-700 mb-1">❌ คำตอบยังไม่ถูกต้องครับ ลองใหม่อีกครั้งนะ!</div>
+          <p>ลองทบทวน <strong>ใบความรู้ย่อยด้านซ้าย</strong> หรือกดปุ่มสีชมพู <strong>"ขอคำใบ้ทีละขั้น (Hint)"</strong> ด้านบน เพื่อให้พี่บอทช่วยไกด์แนวคิดทีละขั้นได้เลยครับ!</p>
+        `;
+      }
+    }
+
+    // =========================================================================
+    // 7. ระบบผู้ช่วยติว AI อัจฉริยะ (Socratic AI Tutor)
+    // =========================================================================
+    function openTutorDrawer() {
+      document.getElementById('ai-tutor-drawer').classList.remove('translate-x-full');
+    }
+
+    function closeTutorDrawer() {
+      document.getElementById('ai-tutor-drawer').classList.add('translate-x-full');
+    }
+
+    function askTutorAboutCurrentQuest() {
+      const quest = state.activeQuests.find(q => q.id === state.currentOpenQuestId);
+      openTutorDrawer();
+      if (quest) {
+        sendQuickTutorPrompt(`ช่วยติวเสริมเรื่อง "${quest.title}" ให้เข้าใจง่ายขึ้นหน่อยครับ`);
+      }
+    }
+
+    function requestStepHint() {
+      const quest = state.activeQuests.find(q => q.id === state.currentOpenQuestId);
+      openTutorDrawer();
+      if (quest) {
+        sendQuickTutorPrompt(`ขอคำใบ้ทีละขั้นสำหรับโจทย์: "${quest.question}" โดยยังไม่ต้องเฉลยคำตอบนะครับ`);
+      } else {
+        sendQuickTutorPrompt('ขอคำใบ้ทีละขั้นในการแก้โจทย์แนวคิดเชิงคำนวณครับ');
+      }
+    }
+
+    function sendQuickTutorPrompt(text) {
+      document.getElementById('tutor-input').value = text;
+      handleTutorFormSubmit(new Event('submit'));
+    }
+
+    async function handleTutorFormSubmit(event) {
+      event.preventDefault();
+      const inputEl = document.getElementById('tutor-input');
+      const userText = inputEl.value.trim();
+      if (!userText) return;
+
+      appendChatMessage('user', userText);
+      inputEl.value = '';
+
+      const loadingId = appendChatMessage('ai', '<span class="animate-pulse text-questPurple-700 font-medium">พี่บอทกำลังเรียบเรียงคำใบ้ให้อยู่ครับ... 💭</span>', true);
+
+      const aiReply = await fetchGeminiScaffoldingReply(userText);
+
+      const loadingEl = document.getElementById(loadingId);
+      if (loadingEl) loadingEl.remove();
+      appendChatMessage('ai', aiReply);
+    }
+
+    function appendChatMessage(sender, htmlContent) {
+      const container = document.getElementById('tutor-messages');
+      const wrapper = document.createElement('div');
+      const msgId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+      wrapper.id = msgId;
+
+      if (sender === 'user') {
+        wrapper.className = 'flex items-start justify-end gap-2';
+        wrapper.innerHTML = `
+          <div class="bg-questPink-100 border border-questPink-200 p-3.5 rounded-2xl rounded-tr-none text-sm text-warmBrown-900 max-w-[82%] leading-relaxed">
+            ${escapeHtml(htmlContent)}
+          </div>
+        `;
+      } else {
+        wrapper.className = 'flex items-start gap-2.5';
+        wrapper.innerHTML = `
+          <div class="w-8 h-8 rounded-xl bg-questPurple-100 border border-questPurple-200 flex items-center justify-center text-base shrink-0">🤖</div>
+          <div class="bg-white p-3.5 rounded-2xl rounded-tl-none border border-warmCream-200 shadow-xs text-sm text-warmBrown-800 max-w-[85%] leading-relaxed">
+            ${htmlContent}
+          </div>
+        `;
+      }
+
+      container.appendChild(wrapper);
+      container.scrollTop = container.scrollHeight;
+      return msgId;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    async function fetchGeminiScaffoldingReply(userQuery) {
+      const currentQuest = state.activeQuests.find(q => q.id === state.currentOpenQuestId);
+      const questContext = currentQuest
+        ? `นักเรียนกำลังทำภารกิจ: "${currentQuest.title}" คำถามคือ: "${currentQuest.question}"`
+        : 'นักเรียนกำลังทบทวนบทเรียนเรื่องแนวคิดเชิงคำนวณ (การแยกส่วนประกอบ, การหารูปแบบ, การออกแบบอัลกอริทึม)';
+
+      const systemPrompt = `คุณคือ "พี่บอท Ed-Quest" ผู้ช่วยติว AI ประจำห้องเรียนระดับมัธยมปลายและอาชีวศึกษา
+บุคลิก: ใจดี เป็นกันเอง ให้กำลังใจ ใช้ภาษาไทยที่ถูกต้องตามหลักไวยากรณ์ สละสลวย และอ่านง่าย
+กฎสำคัญ (Socratic Scaffolding):
+1. ห้ามบอกเฉลยคำตอบตรงๆ ทันที แต่ให้ "ใบ้ทีละขั้น (Step-by-step hints)" หรือตั้งคำถามนำทางให้นักเรียนคิดต่อเองได้
+2. อธิบายสั้น กระชับ แบ่งเป็นข้อๆ หรือใช้ตัวอย่างในชีวิตประจำวัน
+บริบทปัจจุบัน: ${questContext}`;
+
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+      const payload = {
+        contents: [{ parts: [{ text: userQuery }] }],
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        }
+      };
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) throw new Error('API fallback');
+        const data = await response.json();
+        const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return text.replace(/\n/g, '<br/>');
+        }
+        throw new Error('Empty response');
+      } catch (err) {
+        return generateLocalScaffoldingHint(userQuery, currentQuest);
+      }
+    }
+
+    function generateLocalScaffoldingHint(query, quest) {
+      if (quest) {
+        if (quest.themeColor === 'orange') {
+          return `💡 <strong class="text-questOrange-700">คำใบ้ทีละขั้นสำหรับด่านนี้:</strong><br/>1. ลองมองภาพรวมของงานใหญ่ในโจทย์ก่อนครับว่ามีเป้าหมายหลักคืออะไร<br/>2. จากนั้นลองพิจารณาว่าตัวเลือกใดที่ <strong>"แบ่งหน้าที่ย่อยออกเป็นส่วนๆ อย่างเป็นระบบ"</strong> แทนที่จะทำแค่อย่างใดอย่างหนึ่ง<br/>ลองดูตัวเลือกอีกครั้งนะครับ พี่เอาใจช่วย! 🌟`;
+        }
+        if (quest.themeColor === 'pink') {
+          return `🔍 <strong class="text-questPink-700">คำใบ้ทีละขั้นสำหรับด่านนี้:</strong><br/>1. ลองแยกสังเกตทีละส่วนครับ เช่น ตัวอักษรเดินหน้าไปทีละกี่ตัว และตัวเลขเพิ่มขึ้นทีละเท่าไร<br/>2. เมื่อเห็นรูปแบบที่ซ้ำกันแล้ว ลองทำตามกฎนั้นต่ออีก 1 ก้าวก็จะได้คำตอบทันทีครับ! ✨`;
+        }
+        if (quest.themeColor === 'green') {
+          return `⚙️ <strong class="text-questGreen-700">คำใบ้ทีละขั้นสำหรับด่านนี้:</strong><br/>1. ลองไล่การทำงานทีละบรรทัดเหมือนเราสวมบทเป็นคอมพิวเตอร์ดูครับ<br/>2. สังเกต <strong>"เงื่อนไข (If / While)"</strong> ว่าต้องตรวจสอบอะไรก่อน และหากไม่มีคำสั่งเปลี่ยนค่าตัวแปรนับรอบจะเกิดอะไรขึ้น<br/>ลองทบทวนดูอีกนิดนะครับ เกือบได้คำตอบแล้ว! 🚀`;
+        }
+        return `🏆 <strong class="text-questRed-700">คำใบ้สำหรับด่านบอส:</strong><br/>ลองเรียงลำดับตามหลักการทำงานของคอมพิวเตอร์ดูครับ:<br/>1️⃣ <strong>ส่วนรับข้อมูล (Input):</strong> รับข้อมูลเข้ามาก่อน (เช่น ถ่ายภาพขยะ)<br/>2️⃣ <strong>ส่วนประมวลผล (Process):</strong> วิเคราะห์รูปแบบและตัดสินใจตามเงื่อนไข<br/>3️⃣ <strong>ส่วนแสดงผล (Output):</strong> สั่งเปิดช่องทิ้งขยะที่ถูกต้อง<br/>ตัวเลือกใดเรียงตาม 3 ขั้นตอนนี้ครบถ้วนที่สุดครับ? 😊`;
+      }
+
+      if (query.includes('ตัวอย่าง')) {
+        return `🍜 <strong class="text-questOrange-700">ตัวอย่างแนวคิดเชิงคำนวณในชีวิตประจำวัน (การต้มบะหมี่กึ่งสำเร็จรูป):</strong><br/>• <strong>การแยกส่วนประกอบ:</strong> เตรียมหม้อ น้ำ เส้น และเครื่องปรุง<br/>• <strong>การหารูปแบบ:</strong> ทุกครั้งที่ต้มต้องรอให้น้ำเดือดก่อนใส่เส้น<br/>• <strong>การออกแบบอัลกอริทึม:</strong> 1) เติมน้ำ 2) ต้มจนเดือด 3) ใส่เส้น 3 นาที 4) ใส่เครื่องปรุงพร้อมรับประทาน!`;
+      }
+
+      return `🤖 <strong class="text-questPurple-700">พี่บอท Ed-Quest แนะนำแนวคิด:</strong><br/>เวลาเจอโจทย์ที่ซับซ้อน ให้ลองทำ 3 ขั้นตอนนี้ครับ:<br/>1. จับใจความสิ่งที่โจทย์ต้องการทราบ<br/>2. ตัดตัวเลือกที่ไม่เกี่ยวข้องออกไปก่อน 2 ข้อ<br/>3. ลองแทนค่าหรือไล่ลำดับการทำงานทีละขั้นใน 2 ข้อที่เหลือ<br/>หากติดขัดตรงด่านไหน กดเข้าด่านนั้นแล้วกดปุ่ม <strong>"ขอคำใบ้ทีละขั้น"</strong> ได้เลยนะครับ! 💪`;
+    }
+
+    // =========================================================================
+    // 8. ฟังก์ชันจัดการโปรไฟล์นักเรียน & ตารางแดชบอร์ดครู
+    // =========================================================================
+    let tempSelectedAvatar = state.avatar;
+
+    function openProfileModal() {
+      document.getElementById('input-student-name').value = state.studentName;
+      tempSelectedAvatar = state.avatar;
+      highlightSelectedAvatar();
+      document.getElementById('profile-modal').classList.remove('hidden');
+    }
+
+    function closeProfileModal() {
+      document.getElementById('profile-modal').classList.add('hidden');
+    }
+
+    function selectAvatar(emoji) {
+      tempSelectedAvatar = emoji;
+      highlightSelectedAvatar();
+    }
+
+    function highlightSelectedAvatar() {
+      document.querySelectorAll('.avatar-opt').forEach(btn => {
+        if (btn.textContent.trim() === tempSelectedAvatar) {
+          btn.className = 'avatar-opt text-2xl p-2.5 rounded-2xl bg-questPink-100 border-2 border-questPink-500 cursor-pointer';
+        } else {
+          btn.className = 'avatar-opt text-2xl p-2.5 rounded-2xl bg-warmCream-50 border border-warmCream-200 cursor-pointer';
+        }
+      });
+    }
+
+    function saveProfileModal() {
+      const newName = document.getElementById('input-student-name').value.trim();
+      if (newName) state.studentName = newName;
+      state.avatar = tempSelectedAvatar;
+      updateHUD();
+      renderTeacherTable();
+      closeProfileModal();
+      showToast('บันทึกโปรไฟล์เรียบร้อยแล้ว! ✨', 'success');
+    }
+
+    function renderTeacherTable() {
+      const tbody = document.getElementById('teacher-student-table');
+      if (!tbody) return;
+
+      const userCompleted = state.completedQuestIds.length;
+      const userTotal = state.activeQuests.length || 4;
+      const userPct = Math.round((userCompleted / userTotal) * 100);
+
+      let weakAreas = [];
+      if (state.skillScores.decomposition < 2) weakAreas.push('การแยกส่วนประกอบ');
+      if (state.skillScores.pattern < 1) weakAreas.push('การหารูปแบบ');
+      if (state.skillScores.algorithm < 2) weakAreas.push('การออกแบบอัลกอริทึม');
+      const focusText = weakAreas.length > 0 ? weakAreas.join(', ') : 'ด่านท้าทายระดับสูง';
+
+      const currentUserRow = `
+        <tr class="bg-questGreen-50/70 font-medium">
+          <td class="py-3 px-2">
+            <div class="flex items-center gap-2">
+              <span>${state.avatar}</span>
+              <span class="text-warmBrown-900 font-bold">${escapeHtml(state.studentName)} (คุณ)</span>
+            </div>
+          </td>
+          <td class="py-3 px-2">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-questGreen-100 text-questGreen-700">${state.paceLevel.split(' ')[0]}</span>
+          </td>
+          <td class="py-3 px-2 text-warmBrown-800">${focusText}</td>
+          <td class="py-3 px-2 text-right font-bold text-questGreen-700">${userCompleted}/${userTotal} ด่าน (${userPct}%)</td>
+        </tr>
+      `;
+
+      const otherRows = mockClassStudents.map(st => `
+        <tr>
+          <td class="py-3 px-2 text-warmBrown-800 font-medium">${st.name}</td>
+          <td class="py-3 px-2">
+            <span class="px-2.5 py-1 rounded-full text-xs font-bold ${st.badge}">${st.pace}</span>
+          </td>
+          <td class="py-3 px-2 text-warmBrown-600">${st.focus}</td>
+          <td class="py-3 px-2 text-right font-semibold text-warmBrown-800">${st.progress}</td>
+        </tr>
+      `).join('');
+
+      tbody.innerHTML = currentUserRow + otherRows;
+    }
+  </script>
+</body>
+</html>
